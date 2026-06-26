@@ -593,12 +593,57 @@ function doSearch(){
 }
 
 function resetSearch(){
-  document.getElementById("sel-branch").value = "";
-  document.getElementById("date-today").value = todayStr();
-  document.getElementById("date-from").value  = "";
-  document.getElementById("date-to").value    = "";
-  document.getElementById("result-area").style.display = "none";
-  document.getElementById("no-result").style.display   = "none";
+  // 현재 검색 조건(날짜/기간) 파악
+  const branch = document.getElementById("sel-branch").value;
+  let from, to;
+
+  if(searchMode === "today"){
+    from = to = document.getElementById("date-today").value;
+  } else {
+    from = document.getElementById("date-from").value;
+    to   = document.getElementById("date-to").value;
+  }
+
+  // 날짜가 있으면 해당 기간 데이터 삭제
+  if(from && to){
+    const keys = getBizKeys(from, to);
+    // 영업일 외 날짜도 포함 (오늘 검색은 공휴일/주말 포함)
+    const allKeys = [];
+    const cur = new Date(from), end = new Date(to);
+    while(cur <= end){
+      allKeys.push(`${cur.getFullYear()}-${pad(cur.getMonth()+1)}-${pad(cur.getDate())}`);
+      cur.setDate(cur.getDate()+1);
+    }
+
+    const targets = staff.map((s,si)=>({...s,si}))
+      .filter(s => !branch || s.branch === branch);
+
+    const keyCount  = allKeys.length;
+    const staffCount = targets.length;
+
+    if(!confirm(
+      `[${branch||"전체"}] ${from} ~ ${to}
+` +
+      `대상 ${staffCount}명 × ${keyCount}일치 데이터를 초기화할까요?
+
+` +
+      `⚠ 이 작업은 되돌릴 수 없습니다.`
+    )) return;
+
+    targets.forEach(({si}) => {
+      allKeys.forEach(k => {
+        const key = `${si}_${k}`;
+        if(data[key]) delete data[key];
+      });
+    });
+
+    save();
+    doSearch(); // 초기화 후 결과 즉시 갱신
+  } else {
+    // 날짜 미입력 시 화면만 초기화
+    document.getElementById("result-area").style.display = "none";
+    document.getElementById("no-result").style.display   = "none";
+  }
 }
 
 // ── 모달 ──
